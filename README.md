@@ -3,6 +3,9 @@ que sea capaz de resolver muchas de sus dudas del codigo o inquietudes
 
 -Mata
 
+Si leen esto en este preciso repositorio, es porque es la tercera versión con el diagnostico de WMIC y PSUTIL integrado, solo falta encontrar la manera en la que
+se pueda ejecutar con crystaldisk info o HW INFO
+
 - son las 15:02 del 18/03/2026 para cuando escribes esto, quiero dejar en claro que este proyecto es originalmente de Ardha27 y en ningún momento pretendo robar su trabajo ni hacerlo pasar por propio. Quiero dejar en claro que, cualquiera que use el código, le deben dar credito a Ardha27 y a Lemata324.
 
 - Nota: ya es 17 de marzo, mombii ya tiene habilitado el chat en la consola
