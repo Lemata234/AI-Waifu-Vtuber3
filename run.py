@@ -1,6 +1,10 @@
 import socket
 import threading
 import wave
+import json
+import time
+import re
+import sys
 
 import keyboard
 import ollama
@@ -14,14 +18,15 @@ from utils.promptMaker import *
 from utils.subtitle import *
 from utils.translate import *
 from utils.twitch_config import *
+from utils import diagnostico  # <--- NUEVO: módulo de diagnóstico
 
 # ESTE ES EL LINK DE DRIVE PARA EL ARCHIVO MODEL.PT QUE PESA 54 MB:
 # https://drive.google.com/drive/folders/1uQ8XTQyBSxrwD7qRdGUeUIxTDaBD4Sfe?hl=es
 
-# ANTES DE USAR ESTA VERSIÓN, YA QUE JODIMOS EL ENTORNO VIRTUAL, USA ESTE COMANDO LA PRIMERA VEZ QUE VAYAS
+# ANTES DE USAR ESTA VERSIÓN, YA QUE JODÍ EL ENTORNO VIRTUAL, USA ESTE COMANDO LA PRIMERA VEZ QUE VAYAS
 # A USAR EL POWER SHELL: .\.venv\Scripts\Activate.ps1
 # CON ESE COMANDO SI TE VA A ADMITIR ESCRIBIR PYTHON RUN.PY
-# id de stream yt:
+# id de stream yt: a0ciEBctkAY
 # id de stream twitch:
 
 # Configurar consola para UTF-8
@@ -42,13 +47,13 @@ is_Speaking = False
 owner_name = "Usuario"
 blacklist = ["Nightbot", "streamelements"]
 
-# Modelo de Ollama (cambiar si es necesario)
+# Modelo de Ollama
 OLLAMA_MODEL = "gemma3:4b"
 
-# Nombre del dispositivo de cable virtual (VB-Audio Virtual Cable)
+# Cable virtual
 CABLE_DEVICE_NAME = "CABLE Input"
 
-# NUEVO: Variable global para almacenar el último idioma detectado
+# Idioma actual
 current_language = "es"
 
 # ============================================
@@ -89,10 +94,10 @@ def record_audio():
     transcribe_audio("input.wav")
 
 # ============================================
-# FUNCIÓN: Transcribir audio a texto (detección automática de idioma)
+# FUNCIÓN: Transcribir audio a texto
 # ============================================
 def transcribe_audio(file):
-    global chat_now, current_language  # NUEVO
+    global chat_now, current_language
 
     try:
         import speech_recognition as sr
@@ -102,10 +107,8 @@ def transcribe_audio(file):
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio = recognizer.record(source)
 
-
-        # NUEVO: Usar detección automática de idioma de Google Speech
         try:
-            chat_now = recognizer.recognize_google(audio)  # sin parámetro language, usa auto-detect  # sin language, usa auto-detect.  # None = detección automática
+            chat_now = recognizer.recognize_google(audio)
             print(f"🗣️ Tú: {chat_now}")
         except sr.UnknownValueError:
             print("❌ No se pudo entender el audio")
@@ -114,7 +117,6 @@ def transcribe_audio(file):
             print("❌ Error con el servicio de reconocimiento")
             return
 
-        # NUEVO: Detectar el idioma del texto transcrito
         from utils.translate import detect_google
         current_language = detect_google(chat_now)
         print(f"🌐 Idioma detectado: {current_language}")
@@ -133,7 +135,6 @@ def transcribe_audio(file):
 def ollama_answer():
     global total_characters, conversation
 
-    # Limitar historial para no saturar memoria
     total_characters = sum(len(d['content']) for d in conversation)
     while total_characters > 4000:
         try:
@@ -142,14 +143,11 @@ def ollama_answer():
         except Exception as e:
             print(f"Error limpiando historial: {e}")
 
-    # Guardar conversación
     with open("conversation.json", "w", encoding="utf-8") as f:
         json.dump(history, f, indent=4)
 
-    # NUEVO: Obtener prompt pasando el idioma actual
     prompt = getPrompt(current_language)
 
-    # Llamar a Ollama
     try:
         response = ollama.chat(
             model=OLLAMA_MODEL,
@@ -169,20 +167,17 @@ def ollama_answer():
     translate_text(message)
 
 # ============================================
-# FUNCIÓN: Generar voz y enviar a cable virtual (multilingüe)
+# FUNCIÓN: Generar voz y enviar a cable virtual
 # ============================================
 def translate_text(text):
-    global is_Speaking, chat_now, current_language  # NUEVO: usar current_language
+    global is_Speaking, chat_now, current_language
 
-    # Mostrar respuesta
     print(f"\n🤖 Mombii ({current_language}): {text}")
 
-    # Generar subtítulo
     generate_subtitle(chat_now, text)
 
     is_Speaking = True
 
-    # NUEVO: Usar función multilingüe de TTS
     try:
         from utils.TTS import hablar_en_idioma
         hablar_en_idioma(text, current_language, CABLE_DEVICE_NAME)
@@ -192,7 +187,6 @@ def translate_text(text):
 
     is_Speaking = False
 
-    # Limpiar archivos
     time.sleep(1)
     for archivo in ["output.txt", "chat.txt"]:
         try:
@@ -202,10 +196,10 @@ def translate_text(text):
             pass
 
 # ============================================
-# FUNCIÓN: Capturar chat de YouTube (con detección de idioma)
+# FUNCIÓN: Capturar chat de YouTube
 # ============================================
 def yt_livechat(video_id):
-    global chat, current_language  # NUEVO
+    global chat, current_language
     live = pytchat.create(video_id=video_id)
     while live.is_alive():
         try:
@@ -216,7 +210,6 @@ def yt_livechat(video_id):
                     chat_raw = re.sub(r':[^\s]+:', '', c.message)
                     chat_raw = chat_raw.replace('#', '')
 
-                    # NUEVO: Detectar idioma del mensaje
                     from utils.translate import detect_google
                     idioma_msg = detect_google(chat_raw)
                     current_language = idioma_msg
@@ -229,19 +222,17 @@ def yt_livechat(video_id):
             print(f"Error en chat de YT: {e}")
 
 # ============================================
-# FUNCIÓN: Capturar chat de Twitch (con detección de idioma)
+# FUNCIÓN: Capturar chat de Twitch
 # ============================================
 def twitch_livechat():
     global chat, current_language
     sock = socket.socket()
     sock.connect((server, port))
 
-    # Enviar autenticación
     sock.send(f"PASS {token}\n".encode('utf-8'))
     sock.send(f"NICK {nickname}\n".encode('utf-8'))
     sock.send(f"JOIN {channel}\n".encode('utf-8'))
 
-    # Pequeña espera para que el servidor procese
     time.sleep(1)
 
     regex = r":(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #\w+ :(.+)"
@@ -249,18 +240,13 @@ def twitch_livechat():
     while True:
         try:
             resp = sock.recv(2048).decode('utf-8', errors='ignore')
-
-            # Mostrar todo lo que llega (para depuración)
             print(f"[DEBUG RAW] {repr(resp)}")
 
-            # Responder a PING para mantener la conexión viva
             if resp.startswith('PING'):
                 sock.send("PONG\n".encode('utf-8'))
                 continue
 
-            # Procesar solo líneas que contengan PRIVMSG
             if 'PRIVMSG' in resp:
-                # Limpiar y procesar
                 resp = demojize(resp)
                 match = re.match(regex, resp)
 
@@ -268,46 +254,82 @@ def twitch_livechat():
                     username = match.group(1)
                     message = match.group(2)
 
-                    # Opcional: ignorar mensajes del propio bot para no crear un loop
-                    # if username.lower() == nickname.lower():
-                    #    continue
-
                     if username in blacklist:
                         continue
 
-                    # Detectar idioma
                     from utils.translate import detect_google
                     idioma_msg = detect_google(message)
                     current_language = idioma_msg
                     print(f"🌐 Idioma del chat: {idioma_msg}")
 
-                    # Asignar a la variable global chat para que el hilo preparation lo tome
                     chat = username + ' dijo: ' + message
                     print(chat)
                 else:
-                    print(f"⚠️ Línea PRIVMSG no coincide con regex: {resp.strip()}")
-            else:
-                # Líneas de bienvenida o de otro tipo, solo ignorar
-                pass
-
+                    print(f"⚠️ Línea PRIVMSG no coincide: {resp.strip()}")
         except Exception as e:
             print(f"Error en chat de Twitch: {e}")
-            time.sleep(1)  # Evitar saturar en caso de error continuo
+            time.sleep(1)
 
-            # ============================================
-# FUNCIÓN: Chat por texto (modo 4)
+# ============================================
+# FUNCIÓN: Procesar diagnóstico (para modo 4)
+# ============================================
+def procesar_diagnostico(mensaje_original, idioma):
+    """
+    Ejecuta el diagnóstico y genera una respuesta con la IA.
+    """
+    global chat_now, current_language
+    print("🔧 Ejecutando diagnóstico...")
+    try:
+        # 1. Obtener datos de diagnóstico
+        datos = diagnostico.ejecutar_diagnostico()
+        print("✅ Diagnóstico completado.")
+
+        # 2. Preparar prompt especial
+        prompt_diagnostico = f"""
+Eres Mombii, una asistente técnica experta.
+El usuario ha solicitado un diagnóstico de su computadora.
+Estos son los datos recopilados de las herramientas:
+
+{datos}
+
+Basándote en esta información, interpreta el estado del hardware.
+Si hay problemas, indica si son graves o leves, y qué podría estar causándolos.
+No des instrucciones para reparar automáticamente, solo diagnóstico y recomendaciones generales.
+Responde en el idioma '{idioma}' de forma clara y profesional.
+"""
+        # 3. Llamar a Ollama directamente
+        response = ollama.chat(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt_diagnostico}],
+            options={"num_predict": 300, "temperature": 0.5}
+        )
+        respuesta_ia = response['message']['content']
+
+        # 4. Mostrar y vocalizar
+        chat_now = mensaje_original  # Para subtítulos
+        current_language = idioma
+        translate_text(respuesta_ia)
+
+    except Exception as e:
+        print(f"❌ Error en diagnóstico: {e}")
+        chat_now = mensaje_original
+        current_language = idioma
+        translate_text("Lo siento, hubo un problema al ejecutar el diagnóstico.")
+
+# ============================================
+# FUNCIÓN: Chat por texto (modo 4) con diagnóstico
 # ============================================
 def chat_texto():
-    global chat, current_language
+    global chat, current_language, is_Speaking
     print("\n" + "="*50)
     print("   MODO CHAT POR TEXTO")
     print("   Escribe tu mensaje y presiona ENTER")
+    print("   Comandos especiales: 'diagnostica', '!diagnostico' para diagnóstico")
     print("   Escribe 'salir' para volver al menú")
     print("="*50 + "\n")
 
     while True:
         try:
-            # Leer entrada del usuario
             mensaje = input("Tú: ").strip()
 
             if mensaje.lower() == 'salir':
@@ -315,17 +337,30 @@ def chat_texto():
                 break
 
             if mensaje:
-                # Detectar idioma del mensaje
                 from utils.translate import detect_google
                 idioma = detect_google(mensaje)
-                current_language = idioma
-
-                # Asignar a la variable global que vigila preparation()
-                chat = "Usuario dijo: " + mensaje
                 print(f"🌐 Idioma detectado: {idioma}")
 
-                # Pequeña pausa para que el hilo preparation() procese
-                time.sleep(0.5)
+                # Detectar si es un comando de diagnóstico
+                if any(palabra in mensaje.lower() for palabra in ['diagnostica', '!diagnostico', 'diagnóstico', 'analiza mi pc']):
+                    # Ejecutar diagnóstico directamente (sin pasar por el hilo preparation)
+                    procesar_diagnostico(mensaje, idioma)
+                else:
+                    # Flujo normal: asignar a chat y esperar que el hilo lo procese
+                    chat = "Usuario dijo: " + mensaje
+                    current_language = idioma
+
+                    # Esperar a que Mombii comience a hablar
+                    timeout = 10
+                    while not is_Speaking and timeout > 0:
+                        time.sleep(0.1)
+                        timeout -= 0.1
+
+                    # Esperar a que termine de hablar
+                    while is_Speaking:
+                        time.sleep(0.1)
+
+                    time.sleep(0.5)
 
         except KeyboardInterrupt:
             print("\n👋 Saliendo del modo chat...")
@@ -333,12 +368,6 @@ def chat_texto():
         except Exception as e:
             print(f"❌ Error en chat de texto: {e}")
             time.sleep(1)
-
-
-
-
-
-
 
 # ============================================
 # FUNCIÓN: Preparación (hilo principal)
@@ -366,16 +395,16 @@ if __name__ == "__main__":
         print("1 - Micrófono (habla con MOMBII)")
         print("2 - YouTube Live")
         print("3 - Twitch Live")
-        print("4 - Chat por texto")  # <--- NUEVA OPCIÓN
+        print("4 - Chat por texto (con diagnóstico)")
 
         mode = input("Selecciona modo (1, 2, 3 o 4): ")
 
         if mode == "1":
             print("\n🎤 Modo MICRÓFONO")
-            print("Mantén presionada la tecla RIGHT SHIFT para hablar")
+            print("Mantén presionada la tecla M para hablar")
             print("Suelta la tecla para que MOMBII procese tu mensaje\n")
             while True:
-                if keyboard.is_pressed('RIGHT_SHIFT'):
+                if keyboard.is_pressed('M'):
                     record_audio()
 
         elif mode == "2":
@@ -390,7 +419,7 @@ if __name__ == "__main__":
             t.start()
             twitch_livechat()
 
-        elif mode == "4":  # <--- NUEVO MODO
+        elif mode == "4":
             t = threading.Thread(target=preparation)
             t.start()
             chat_texto()
