@@ -52,9 +52,16 @@ son las 15:02 del 18/03/2026 para cuando escribes esto, mombii ahora funciona co
 
 estas son las dependencias usadas. si al correr la instrucción de requirements no se descarga alguno, deben descargarlo individualmente.
 
+esta lista fue actualizada con las dependencias que he usado hasta esta fecha: 18/03/2026 a las 10:45 pm.
+
+aiohappyeyeballs   2.6.1
+aiohttp            3.13.3
+aiosignal          1.4.0
 alkana             0.0.3
 annotated-types    0.7.0
 anyio              4.12.1
+async-timeout      5.0.1
+attrs              25.4.0
 beautifulsoup4     4.14.3
 certifi            2026.2.25
 cffi               2.0.0
@@ -62,9 +69,11 @@ charset-normalizer 3.4.5
 colorama           0.4.6
 comtypes           1.4.16
 deep-translator    1.11.4
+edge-tts           7.2.7
 emoji              2.15.0
 exceptiongroup     1.3.1
 filelock           3.25.0
+frozenlist         1.8.0
 fsspec             2026.2.0
 h11                0.16.0
 h2                 4.3.0
@@ -78,12 +87,15 @@ keyboard           0.13.5
 MarkupSafe         3.0.3
 mecab-python3      1.0.12
 mpmath             1.3.0
+multidict          6.7.1
 networkx           3.4.2
 numpy              2.2.6
 ollama             0.6.1
 pandas             2.3.3
 pip                26.0.1
 plac               1.4.5
+propcache          0.4.1
+psutil             7.2.2
 PyAudio            0.2.14
 pycparser          3.0
 pydantic           2.12.5
@@ -103,6 +115,7 @@ soundfile          0.13.1
 soupsieve          2.8.3
 SpeechRecognition  3.14.6
 sympy              1.14.0
+tabulate           0.10.0
 torch              2.10.0
 tqdm               4.67.3
 typing_extensions  4.15.0
@@ -111,8 +124,7 @@ tzdata             2025.3
 unidic             1.1.0
 urllib3            2.6.3
 wasabi             0.10.1
-edge-tts
-
+yarl               1.23.0
 # Support
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R7AH1FA)
