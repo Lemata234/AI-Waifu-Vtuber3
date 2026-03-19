@@ -1,5 +1,5 @@
 DE ANTEMANO PARA CUALQUIERA QUE LEA ESTO: Soy un vibe coder, apenas este es mi primer proyecto "serio" que no tiene mucho que ver con lo que me dedico, no esperen
-que sea capaz de resolver muchas de sus dudas del codigo o inquietudes
+que sea capaz de resolver muchas de sus dudas del codigo o inquietudes sobre como funciona mombii
 
 -Mata
 
